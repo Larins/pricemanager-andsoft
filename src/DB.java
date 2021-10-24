@@ -175,17 +175,31 @@ public void selectPrices(String question){
 	//Options menu.
 	public int menu(int m){
 		m = 0;
+		boolean valid;
 		do{
-			m = Integer.parseInt(JOptionPane.showInputDialog(
-			//Option can be added here if later defined on its own case.
-			"[1] Add article\n"
-			+ "[2] Get articles\n"
-			+ "[3] Add promotion\n"
-			+ "[4] Get promotions\n"
-			+ "[5] Get prices (in progress)\n"
-			+ "[6] Exit\n"
-			+ "Choose an option"
-			));
+			do {
+
+			
+            valid = true;
+            try {
+    			m = Integer.parseInt(JOptionPane.showInputDialog(
+    					//Option can be added here if later defined on its own case.
+    					"[1] Add article\n"
+    					+ "[2] Get articles\n"
+    					+ "[3] Add promotion\n"
+    					+ "[4] Get promotions\n"
+    					+ "[5] Get prices (in progress)\n"
+    					+ "[6] Exit\n"
+    					+ "Choose an option"
+    					));
+            } catch (NumberFormatException e) {
+            	JOptionPane.showMessageDialog(null, "Try again please :)\nEnter a number from 1 to 6.");
+            	//System.out.println("Enter an integer only. Try again please :)");
+                valid = false;
+            }
+			
+			} while (!valid);
+			//switch(m){
 			switch(m){
 				case 1://Add article.
 					String art_nom = JOptionPane.showInputDialog("Write a name for the article");
@@ -218,7 +232,7 @@ public void selectPrices(String question){
 				break;
 				//Option choice error.
 				default:
-					JOptionPane.showMessageDialog(null, "Invalid");
+					JOptionPane.showMessageDialog(null, "Invalid, try a valid option");
 				break;
 			}
 			}while(m!=6);
