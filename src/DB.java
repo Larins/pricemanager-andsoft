@@ -219,7 +219,7 @@ public class DB {
 			System.out.println("PRICE OF THE ARTICLE\n\tAt chosen date:" + question_date + "\n\tWith chosen name: " + question_name);
 				if (resultado.next() == false) {
 					// Printing message if query result is null.
-					System.out.println("\t\tArticles not found with the chosen name and date\n");
+					throw new Exception("EXCEPTION: Articles not found with the chosen name and date. Details:");
 				} else {
 					do {
 					// Printing query result if not null.
@@ -297,7 +297,7 @@ public class DB {
 				selectPromos();
 				break;
 			case 5:// Article list, only names
-				String question_name = JOptionPane.showInputDialog("Write a article name date to search");
+				String question_name = JOptionPane.showInputDialog("Write a article name to search");
 				LocalDate question_date = LocalDate.parse(JOptionPane.showInputDialog("Write a date to search"));
 				selectPrices(question_name, question_date);
 				break;
