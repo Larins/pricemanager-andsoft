@@ -30,7 +30,7 @@ public class DB {
 	DecimalFormat df = new DecimalFormat("###.##");
 
 //Insertions to DB on ARTICLES table.
-	public void insertar_art(String art_nom, String art_ori, String art_dest, LocalDate art_date_ini, long art_delay_days, LocalDate art_date_fin, double art_price) {
+	public void insertar_art(String art_nom, String art_ori, String art_dest, long art_delay_days, double art_price) {
 		try {
 			// MySQL connectors.
 			// DriverManager.registerDriver(new com.mysql.jdbc.Driver());
@@ -39,13 +39,11 @@ public class DB {
 			// SQLServerStatement for objects creation.
 			Statement consulta = conexion.createStatement();
 			// Article insertion query.
-			consulta.executeUpdate("INSERT INTO articles (name, origin, destination, date_ini, delay_days, date_fin, price) VALUES ("
+			consulta.executeUpdate("INSERT INTO articles (name, origin, destination, delay_days, price) VALUES ("
 					+ "'" + art_nom 
 					+ "'" + "," + "'" + art_ori 
 					+ "'" + "," + "'" + art_dest 
-					+ "'" + "," + "'" + art_date_ini 
 					+ "'" + "," + "'" + art_delay_days 
-					+ "'" + "," + "'" + art_date_fin 
 					+ "'" + "," + "'" + art_price 
 					+ "'" + ")");
 			// Closing DB connection.
@@ -103,9 +101,7 @@ public class DB {
 				System.out.print("\n\t\tNAME: " + resultado.getString("name"));
 				System.out.print("\n\t\tORIGIN: " + resultado.getString("origin"));
 				System.out.print("\n\t\tDESTINATION: " + resultado.getString("destination"));
-				System.out.print("\n\t\tDATE: " + resultado.getDate("date_ini"));
 				System.out.print("\n\t\tDELAY DAYS: " + resultado.getLong("delay_days"));
-				System.out.print("\n\t\tDATE: " + resultado.getDate("date_fin")); 
 				System.out.println("\n\t\tDELAY DAYS: " + resultado.getDouble("price"));
 				System.out.println("\n");
 			}
@@ -177,7 +173,7 @@ public class DB {
 		}
 	}
 
-	public void selectPrices(String question_name, LocalDate question_date) {
+	public void selectPrices(String question_name, String question_ori, String question_dest, Long question_delay, LocalDate question_date) {
 		try {
 			// MySQL connectors.
 			// DriverManager.registerDriver(new com.mysql.jdbc.Driver());
@@ -187,46 +183,52 @@ public class DB {
 			Statement consulta = conexion.createStatement();
 			// Article list query.
 			ResultSet resultado = consulta.executeQuery(
-							"SELECT article, original_price, discount, increment, original_price*discount*increment AS final_price, delay_days, article_date_ini, article_date_fin "
-							+ "FROM "
-							+ "(SELECT "
-							+ "	A.name AS article, "
-							+ "    A.price AS original_price, "
-							+ "    CASE "
-							+ "    	WHEN MIN(P.discount) > 1 THEN 1 "
-							+ "        ELSE MIN(P.discount) "
-							+ "    END AS discount, "
-							+ "    CASE "
-							+ "    	WHEN MAX(P.discount) < 1 THEN 1 "
-							+ "        ELSE MAX(P.discount) "
-							+ "    END AS increment, "
-							+ "    A.delay_days AS delay_days, "
-							+ "    A.date_ini AS article_date_ini, "
-							+ "    A.date_fin AS article_date_fin "
+							"SELECT A.id, A.name AS chosen_article, '" + question_date + "' AS chosen_date, A.origin, A.destination, A.delay_days AS delay_article, Z.delay_days AS delay_promo, A.price AS original_price, " + "Z.discount, Z.increment, A.price*Z.discount*Z.increment AS final_price "
 							+ "FROM articles A "
-							+ "LEFT JOIN promos P ON ("
-							+ "                	(P.date_ini BETWEEN A.date_ini AND A.date_fin OR P.date_fin BETWEEN A.date_ini AND A.date_fin)"
-							+ "					OR (A.date_ini BETWEEN P.date_ini AND P.date_fin OR A.date_fin BETWEEN P.date_ini AND P.date_fin)"
-							+ "					AND (A.delay_days = P.delay_days OR P.delay_days IS NULL)"
-							+ "        	)"
-							+ "WHERE A.name = '" + question_name + "'"
-							+ "AND ((A.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR A.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "')"
-							+ "OR (P.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR P.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "'))"
-							+ "GROUP BY article, original_price, delay_days, article_date_ini, article_date_fin) AS Z;"
+							+ "LEFT JOIN  "
+							+ "    ( "
+							+ "        SELECT "
+							+ "            CASE  "
+							+ "                WHEN MIN(P.discount) > 1 THEN 1 "
+							+ "                ELSE MIN(P.discount) "
+							+ "            END AS discount, "
+							+ "            CASE  "
+							+ "                WHEN MAX(P.discount) < 1 THEN 1 "
+							+ "                ELSE MAX(P.discount) "
+							+ "            END AS increment, "
+							+ "            P.delay_days AS delay_days, "
+							+ "            P.origin,  "
+							+ "            P.destination "
+							+ "        FROM promos P "
+							+ "        WHERE P.date_ini <= '" + question_date + "' AND P.date_fin >= '" + question_date + "' "
+							+ "    ) AS Z ON (Z.delay_days = A.delay_days OR Z.delay_days IS NULL) AND A.origin = Z.origin AND A.destination = Z.destination "
+							+ "WHERE A.name = '" + question_name + "' "
+							+ "AND A.origin = '" + question_ori + "' "
+							+ "AND A.destination = '" + question_dest + "' "
+							+ "AND A.delay_days = " + question_delay + ""
+							+ ";"
 							);
 			// Printing query result.
 			// Title.
-			System.out.println("PRICE OF THE ARTICLE\n\tAt chosen date:" + question_date + "\n\tWith chosen name: " + question_name);
+			System.out.println("PRICE OF THE ARTICLE\n");
+			System.out.println("Your data input, in case you want to check:"
+					+ "\n\tDATE FOR PROMOS: " + question_date 
+					+ "\n\tNAME OF ARTICLE: " + question_name
+					+ "\n\tORIGIN: " + question_ori
+					+ "\n\tDESTINATION: " + question_dest
+					+ "\n\tDELAY: " + question_delay
+					);
 				if (resultado.next() == false) {
 					// Printing message if query result is null.
 					throw new Exception("EXCEPTION: Articles not found with the chosen name and date. Details:");
 				} else {
 					do {
 					// Printing query result if not null.
-				System.out.println("\t\tFINAL PRICE: " + resultado.getDouble("final_price") + "€");
-				System.out.println("\t\t\tORIGINAL PRICE: " + resultado.getDouble("original_price") + "€");
-				System.out.println("\t\t\tDISCOUNTS APPLIED: " + df.format((resultado.getDouble("discount")-1)*100) + "% (modifier: " + resultado.getDouble("discount")+")");
-				System.out.println("\t\t\tINCREMENTS APPLIED: " + df.format((resultado.getDouble("increment")-1)*100) + "% (modifier: " + resultado.getDouble("increment")+")");
+				System.out.println("\nFINAL PRICE: " + resultado.getDouble("final_price") + "€");
+				System.out.println("Detailed data in case it's of your interest:");
+				System.out.println("\tORIGINAL PRICE: " + resultado.getDouble("original_price") + "€");
+				System.out.println("\tDISCOUNTS APPLIED: " + df.format((resultado.getDouble("discount")-1)*100) + "% (modifier: " + resultado.getDouble("discount")+")");
+				System.out.println("\tINCREMENTS APPLIED: " + df.format((resultado.getDouble("increment")-1)*100) + "% (modifier: " + resultado.getDouble("increment")+")");
 				System.out.println("\n");
 				 } while (resultado.next());
 			}
@@ -271,11 +273,9 @@ public class DB {
 				String art_nom = JOptionPane.showInputDialog("Write a name for the article");
 				String art_ori = JOptionPane.showInputDialog("Write an origin for the article");
 				String art_dest = JOptionPane.showInputDialog("Write a destination for the article");
-				LocalDate art_date_ini = LocalDate.parse(JOptionPane.showInputDialog("Set start date for the article"));
 				long art_delay_days = Long.parseLong(JOptionPane.showInputDialog("Set delay days for the article"));
-				LocalDate art_date_fin = art_date_ini.plusDays(art_delay_days); //Not mandatory so it is automatically set.
 				double art_price = Double.parseDouble(JOptionPane.showInputDialog("Set price for the article"));
-				insertar_art(art_nom, art_ori, art_dest, art_date_ini, art_delay_days, art_date_fin, art_price);
+				insertar_art(art_nom, art_ori, art_dest, art_delay_days, art_price);
 				JOptionPane.showMessageDialog(null, "Article saved");
 				break;
 			case 2:// Article list.
@@ -296,10 +296,13 @@ public class DB {
 			case 4:// Promotions list.
 				selectPromos();
 				break;
-			case 5:// Article list, only names
-				String question_name = JOptionPane.showInputDialog("Write a article name to search");
+			case 5:// Get article price by article name and date
+				String question_name = JOptionPane.showInputDialog("Write an article name to search");
+				String question_ori = JOptionPane.showInputDialog("Write an article origin to search");
+				String question_dest = JOptionPane.showInputDialog("Write an article destination to search");
+				Long question_delay = Long.parseLong(JOptionPane.showInputDialog("Write an article delay to search"));
 				LocalDate question_date = LocalDate.parse(JOptionPane.showInputDialog("Write a date to search"));
-				selectPrices(question_name, question_date);
+				selectPrices(question_name, question_ori, question_dest, question_delay, question_date);
 				break;
 			case 6:// Article price by name and date_ini. Por ahora: article name by date_ini
 				selectArticleNames();
@@ -334,4 +337,5 @@ public class DB {
 		return m;
 	}
 }
+
 
