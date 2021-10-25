@@ -15,9 +15,9 @@ public class DB {
 	String origin;
 	LocalDate date_ini;
 	LocalDate date_fin;
+	long delay_days;
 
 	// Article attributes.
-	long delay_days;
 	double price;
 
 	// Promotion attributes.
@@ -55,7 +55,7 @@ public class DB {
 	}
 
 	// Insertions to DB on PROMOS table.
-	public void insertar_prom(String prom_nom, String prom_ori, String prom_dest, LocalDate prom_date_ini, long prom_duration_days, LocalDate prom_date_fin, double prom_discount) {
+	public void insertar_prom(String prom_nom, String prom_ori, String prom_dest, LocalDate prom_date_ini, long prom_duration_days, long prom_delay_days, LocalDate prom_date_fin, double prom_discount) {
 		try {
 			// MySQL connectors.
 			// DriverManager.registerDriver(new com.mysql.jdbc.Driver());
@@ -64,12 +64,13 @@ public class DB {
 			// SQLServerStatement for objects creation.
 			Statement consulta = conexion.createStatement();
 			// Promotion insertion query.
-			consulta.executeUpdate("INSERT INTO promos (name, origin, destination, date_ini, duration_days, date_fin, discount) VALUES (" 
+			consulta.executeUpdate("INSERT INTO promos (name, origin, destination, date_ini, duration_days, delay_days, date_fin, discount) VALUES (" 
 					+ "'" + prom_nom 
 					+ "'" + "," + "'" + prom_ori 
 					+ "'" + "," + "'" + prom_dest 
 					+ "'" + "," + "'" + prom_date_ini
 					+ "'" + "," + "'" + prom_duration_days
+					+ "'" + "," + "'" + prom_delay_days
 					+ "'" + "," + "'" + prom_date_fin
 					+ "'" + "," + "'" + prom_discount
 					+ "'" + ")");
@@ -90,7 +91,7 @@ public class DB {
 			// SQLServerStatement for objects creation.
 			Statement consulta = conexion.createStatement();
 			// Article list query.
-			ResultSet resultado = consulta.executeQuery("SELECT * FROM articles;");
+			ResultSet resultado = consulta.executeQuery("SELECT * FROM articles INNER JOIN promos P;");
 			// Printing query result.
 			// Title.
 			System.out.println("ARTICLE LIST:\n");
@@ -130,7 +131,7 @@ public class DB {
 			while (resultado.next()) {
 				// All results.
 				System.out.print("\n\t\tNAME: " + resultado.getString("name"));
-				System.out.println("\n");
+				System.out.print("\n");
 			}
 			// Closing DB connection.
 			conexion.close();
@@ -160,6 +161,7 @@ public class DB {
 				System.out.print("\n\t\tORIGIN: " + resultado.getString("origin"));
 				System.out.print("\n\t\tDESTINATION: " + resultado.getString("destination"));
 				System.out.print("\n\t\tSTART DATE: " + resultado.getDate("date_ini"));
+				System.out.print("\n\t\tDELAY DAYS: " + resultado.getLong("delay_days"));
 				System.out.print("\n\t\tDURATION DAYS: " + resultado.getLong("duration_days"));
 				System.out.print("\n\t\tEND DATE: " + resultado.getDate("date_fin"));
 				System.out.print("\n\t\tDISCOUNT: " + resultado.getDouble("discount"));
@@ -173,7 +175,7 @@ public class DB {
 		}
 	}
 
-	public void selectPrices(String question) {
+	public void selectPrices(String question_name, LocalDate question_date) {
 		try {
 			// MySQL connectors.
 			// DriverManager.registerDriver(new com.mysql.jdbc.Driver());
@@ -183,24 +185,43 @@ public class DB {
 			Statement consulta = conexion.createStatement();
 			// Article list query.
 			ResultSet resultado = consulta.executeQuery(
-					"SELECT "
-						+ "A.name, "
-						+ "A.date_ini, "
-						+ "A.date_fin, "
-						+ "A.price "
-					+ "FROM articles A "
-					+ "INNER JOIN promos P ON P.date_ini = A.date_ini "
-					+ "WHERE A.date_ini = '"
-							+ question + "';");
+							"SELECT article, original_price, discount, increment, original_price*discount*increment AS final_price, delay_days, article_date_ini, article_date_fin "
+							+ "FROM "
+							+ "(SELECT "
+							+ "	A.name AS article, "
+							+ "    A.price AS original_price, "
+							+ "    CASE "
+							+ "    	WHEN MIN(P.discount) > 1 THEN 1 "
+							+ "        ELSE MIN(P.discount) "
+							+ "    END AS discount, "
+							+ "    CASE "
+							+ "    	WHEN MAX(P.discount) < 1 THEN 1 "
+							+ "        ELSE MAX(P.discount) "
+							+ "    END AS increment, "
+							+ "    A.delay_days AS delay_days, "
+							+ "    A.date_ini AS article_date_ini, "
+							+ "    A.date_fin AS article_date_fin "
+							+ "FROM articles A "
+							+ "LEFT JOIN promos P ON ("
+							+ "                	(P.date_ini BETWEEN A.date_ini AND A.date_fin OR P.date_fin BETWEEN A.date_ini AND A.date_fin)"
+							+ "					OR (A.date_ini BETWEEN P.date_ini AND P.date_fin OR A.date_fin BETWEEN P.date_ini AND P.date_fin)"
+							+ "					AND (A.delay_days = P.delay_days OR P.delay_days IS NULL)"
+							+ "        	)"
+							+ "WHERE A.name = '" + question_name + "'"
+							+ "AND (A.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR A.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "')"
+							+ "OR (P.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR P.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "')"
+							+ "GROUP BY article, original_price, delay_days, article_date_ini, article_date_fin) AS Z;"
+							);
 			// Printing query result.
 			// Title.
-			System.out.println("PRICE OF THE ARTICLE AT CHOSEN DATE:\n");
+			System.out.println("PRICE OF THE ARTICLE AT CHOSEN DATE:" + question_date + "\n");
 			while (resultado.next()) {
 				// All results.
-				System.out.print("\t\tNAME: " + resultado.getString("name"));
-				System.out.print("\n\t\tDATE: " + resultado.getDate("date_ini"));
-				System.out.print("\n\t\tSTART DATE: " + resultado.getDate("date_fin"));
-				System.out.println("\n\t\tEND DATE: " + resultado.getDouble("price")); 
+				System.out.print("\t\tNAME: " + resultado.getString("article"));
+				System.out.print("\t\tORIGINAL PRICE: " + resultado.getDouble("original_price") + "€");
+				System.out.print("\t\tDISCOUNTS APPLIED: " + resultado.getDouble("discount"));
+				System.out.print("\t\tINCREMENTS APPLIED: " + resultado.getDouble("increment"));
+				System.out.print("\t\tFINAL PRICE: " + resultado.getDouble("final_price") + "€");
 				System.out.println("\n");
 			}
 			// Closing DB connection.
@@ -259,42 +280,40 @@ public class DB {
 				String prom_ori = JOptionPane.showInputDialog("Write an origin for the promo");
 				String prom_dest = JOptionPane.showInputDialog("Write a destination for the promo");
 				LocalDate prom_date_ini = LocalDate.parse(JOptionPane.showInputDialog("Set start date for the promo"));
+				long prom_delay_days = Long.parseLong(JOptionPane.showInputDialog("Set delay days for the promo"));
 				long prom_duration_days = Long.parseLong(JOptionPane.showInputDialog("Set delay days for the promo"));
 				LocalDate prom_date_fin = prom_date_ini.plusDays(prom_duration_days); //Not mandatory so it is automatically set.
 				double prom_discount = Double.parseDouble(JOptionPane.showInputDialog("Set increase of price as decimal\nValue for increase of 20% of price should be 1.2\nValue for discount of 20% should be 0.8"));
-				insertar_prom(prom_nom, prom_ori, prom_dest, prom_date_ini, prom_duration_days, prom_date_fin, prom_discount);
+				insertar_prom(prom_nom, prom_ori, prom_dest, prom_date_ini, prom_duration_days, prom_delay_days, prom_date_fin, prom_discount);
 				JOptionPane.showMessageDialog(null, "Promo saved");
 				break;
 			case 4:// Promotions list.
 				selectPromos();
 				break;
 			case 5:// Article list, only names
-				String question = JOptionPane.showInputDialog("Write a start date to search");
-				selectPrices(question);
+				String question_name = JOptionPane.showInputDialog("Write a article name date to search");
+				LocalDate question_date = LocalDate.parse(JOptionPane.showInputDialog("Write a date to search"));
+				selectPrices(question_name, question_date);
 				break;
 			case 6:// Article price by name and date_ini. Por ahora: article name by date_ini
 				selectArticleNames();
 				break;
 			case 7:// Set Christmas period. It's a type of promotion, but instead of asking user for duration_days and setting date_fin automatically, it works the other way around.
-				prom_nom = JOptionPane.showInputDialog("Write a name for the promo");
-				prom_ori = JOptionPane.showInputDialog("Write an origin for the promo");
-				prom_dest = JOptionPane.showInputDialog("Write a destination for the promo");
 				prom_date_ini = LocalDate.parse(JOptionPane.showInputDialog("Set start date for the promo"));
 				prom_date_fin = LocalDate.parse(JOptionPane.showInputDialog("Set end date for the promo"));
 				prom_duration_days =  prom_date_ini.until(prom_date_fin, ChronoUnit.DAYS);
 				prom_discount = 1.2; //User cannot choose, Christmas period modifier is always an increase of 20% on original price.
-				insertar_prom(prom_nom, prom_ori, prom_dest, prom_date_ini, prom_duration_days, prom_date_fin, prom_discount);
+				prom_nom = "Xmas " + prom_date_ini + " to " + prom_date_fin; //Clearance promo name is automatically set.
+				insertar_prom(prom_nom, null, null, prom_date_ini, prom_duration_days, 0, prom_date_fin, prom_discount);
 				JOptionPane.showMessageDialog(null, "Promo saved");
 				break;
 			case 8:// Set Clearance period.
-				prom_nom = JOptionPane.showInputDialog("Write a name for the promo");
-				prom_ori = JOptionPane.showInputDialog("Write an origin for the promo");
-				prom_dest = JOptionPane.showInputDialog("Write a destination for the promo");
 				prom_date_ini = LocalDate.parse(JOptionPane.showInputDialog("Set start date for the promo"));
 				prom_duration_days = Long.parseLong(JOptionPane.showInputDialog("Set delay days for the promo"));
 				prom_date_fin = prom_date_ini.plusDays(prom_duration_days); //Not mandatory so it is automatically set.
 				prom_discount = 0.5; //User cannot choose, Clearance period modifier is always an discount of 50% on original price.
-				insertar_prom(prom_nom, prom_ori, prom_dest, prom_date_ini, prom_duration_days, prom_date_fin, prom_discount);
+				prom_nom = "Clearance " + prom_date_ini + " to " + prom_date_fin; //Clearance promo name is automatically set.
+				insertar_prom(prom_nom, null, null, prom_date_ini, prom_duration_days, 0, prom_date_fin, prom_discount);
 				JOptionPane.showMessageDialog(null, "Promo saved");
 				break;
 			case 0:// Exit.
@@ -309,3 +328,4 @@ public class DB {
 		return m;
 	}
 }
+
