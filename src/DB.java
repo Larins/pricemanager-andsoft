@@ -1,5 +1,6 @@
 
 import java.sql.*;
+import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -26,6 +27,7 @@ public class DB {
 
 	// Program attributes.
 	int m;
+	DecimalFormat df = new DecimalFormat("###.##");
 
 //Insertions to DB on ARTICLES table.
 	public void insertar_art(String art_nom, String art_ori, String art_dest, LocalDate art_date_ini, long art_delay_days, LocalDate art_date_fin, double art_price) {
@@ -208,21 +210,25 @@ public class DB {
 							+ "					AND (A.delay_days = P.delay_days OR P.delay_days IS NULL)"
 							+ "        	)"
 							+ "WHERE A.name = '" + question_name + "'"
-							+ "AND (A.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR A.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "')"
-							+ "OR (P.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR P.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "')"
+							+ "AND ((A.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR A.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "')"
+							+ "OR (P.date_ini BETWEEN '" + question_date + "' AND '" + question_date + "' OR P.date_fin BETWEEN '" + question_date + "' AND '" + question_date + "'))"
 							+ "GROUP BY article, original_price, delay_days, article_date_ini, article_date_fin) AS Z;"
 							);
 			// Printing query result.
 			// Title.
-			System.out.println("PRICE OF THE ARTICLE AT CHOSEN DATE:" + question_date + "\n");
-			while (resultado.next()) {
-				// All results.
-				System.out.print("\t\tNAME: " + resultado.getString("article"));
-				System.out.print("\t\tORIGINAL PRICE: " + resultado.getDouble("original_price") + "€");
-				System.out.print("\t\tDISCOUNTS APPLIED: " + resultado.getDouble("discount"));
-				System.out.print("\t\tINCREMENTS APPLIED: " + resultado.getDouble("increment"));
-				System.out.print("\t\tFINAL PRICE: " + resultado.getDouble("final_price") + "€");
+			System.out.println("PRICE OF THE ARTICLE\n\tAt chosen date:" + question_date + "\n\tWith chosen name: " + question_name);
+				if (resultado.next() == false) {
+					// Printing message if query result is null.
+					System.out.println("\t\tArticles not found with the chosen name and date\n");
+				} else {
+					do {
+					// Printing query result if not null.
+				System.out.println("\t\tFINAL PRICE: " + resultado.getDouble("final_price") + "€");
+				System.out.println("\t\t\tORIGINAL PRICE: " + resultado.getDouble("original_price") + "€");
+				System.out.println("\t\t\tDISCOUNTS APPLIED: " + df.format((resultado.getDouble("discount")-1)*100) + "% (modifier: " + resultado.getDouble("discount")+")");
+				System.out.println("\t\t\tINCREMENTS APPLIED: " + df.format((resultado.getDouble("increment")-1)*100) + "% (modifier: " + resultado.getDouble("increment")+")");
 				System.out.println("\n");
+				 } while (resultado.next());
 			}
 			// Closing DB connection.
 			conexion.close();
