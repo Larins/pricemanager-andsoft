@@ -37,6 +37,34 @@ public class DB {
 			// Connection parameters JDBC//Server//DB name>User>Password
 			Connection conexion = DriverManager.getConnection("jdbc:mysql://localhost/larapricemanager", "root", "");
 			// SQLServerStatement for objects creation.
+			Statement consultaAux = conexion.createStatement();
+			// Article list query.
+			ResultSet resultadoAux = consultaAux.executeQuery(" SELECT name "
+					+ " FROM articles  "
+					+ " WHERE name = '" + art_nom + "'"
+					+ " AND origin = '" + art_ori + "'"
+					+ " AND destination = '" + art_dest + "'"
+					+ " AND delay_days = " + art_delay_days 
+					+ ";"
+
+					);
+			// Printing query result.
+			// Title.
+			System.out.println("DATA FOR NEW ARTICLE\n");
+			System.out.println("Your data input, in case you want to check:"
+					+ "\n\tNAME: " + art_nom 
+					+ "\n\tORIGIN: " + art_ori
+					+ "\n\tDESTINATION: " + art_dest
+					+ "\n\tDELAY: " + art_delay_days
+					+ "\n\tPRICE: " + art_price
+					);
+			
+			if (resultadoAux.next() == true) {
+				// Throwing exception if article exists.
+				throw new Exception("\nEXCEPTION: Article already exists. Details:");
+				
+			} else {
+			// SQLServerStatement for objects creation.
 			Statement consulta = conexion.createStatement();
 			// Article insertion query.
 			consulta.executeUpdate("INSERT INTO articles (name, origin, destination, delay_days, price) VALUES ("
@@ -46,6 +74,16 @@ public class DB {
 					+ "'" + "," + "'" + art_delay_days 
 					+ "'" + "," + "'" + art_price 
 					+ "'" + ")");
+			// Printing query result if not null.
+			System.out.println("NEW ARTICLE - SAVED! DATA: "
+					+ "\n\tNAME: " + art_nom 
+					+ "\n\tORIGIN: " + art_ori
+					+ "\n\tDESTINATION: " + art_dest
+					+ "\n\tDELAY: " + art_delay_days
+					+ "\n\tPRICE: " + art_price
+					);
+			
+			}
 			// Closing DB connection.
 			conexion.close();
 		} catch (Exception ex) {
@@ -74,6 +112,16 @@ public class DB {
 					+ "'" + "," + "'" + prom_date_fin
 					+ "'" + "," + "'" + prom_discount
 					+ "'" + ")");
+			// Printing query result if not null.
+			System.out.println("NEW PROMO - SAVED! DATA: "
+					+ "\n\tNAME: " + prom_nom 
+					+ "\n\tORIGIN: " + prom_ori
+					+ "\n\tDESTINATION: " + prom_dest
+					+ "\n\tSTART DATE: " + prom_date_ini
+					+ "\n\tDELAY: " + prom_delay_days
+					+ "\n\tEND DATE: " + prom_date_fin
+					+ "\n\tDISCOUNT/INCREMENT: " + prom_discount
+					);
 			// Closing DB connection.
 			conexion.close();
 		} catch (Exception ex) {
@@ -276,7 +324,6 @@ public class DB {
 				long art_delay_days = Long.parseLong(JOptionPane.showInputDialog("Set delay days for the article"));
 				double art_price = Double.parseDouble(JOptionPane.showInputDialog("Set price for the article"));
 				insertar_art(art_nom, art_ori, art_dest, art_delay_days, art_price);
-				JOptionPane.showMessageDialog(null, "Article saved");
 				break;
 			case 2:// Article list.
 				selectArticles();
@@ -291,7 +338,6 @@ public class DB {
 				LocalDate prom_date_fin = prom_date_ini.plusDays(prom_duration_days); //Not mandatory so it is automatically set.
 				double prom_discount = Double.parseDouble(JOptionPane.showInputDialog("Set increase of price as decimal\nValue for increase of 20% of price should be 1.2\nValue for discount of 20% should be 0.8"));
 				insertar_prom(prom_nom, prom_ori, prom_dest, prom_date_ini, prom_duration_days, prom_delay_days, prom_date_fin, prom_discount);
-				JOptionPane.showMessageDialog(null, "Promo saved");
 				break;
 			case 4:// Promotions list.
 				selectPromos();
@@ -314,7 +360,6 @@ public class DB {
 				prom_discount = 1.2; //User cannot choose, Christmas period modifier is always an increase of 20% on original price.
 				prom_nom = "Xmas " + prom_date_ini + " to " + prom_date_fin; //Clearance promo name is automatically set.
 				insertar_prom(prom_nom, null, null, prom_date_ini, prom_duration_days, 0, prom_date_fin, prom_discount);
-				JOptionPane.showMessageDialog(null, "Promo saved");
 				break;
 			case 8:// Set Clearance period.
 				prom_date_ini = LocalDate.parse(JOptionPane.showInputDialog("Set start date for the promo"));
@@ -323,7 +368,6 @@ public class DB {
 				prom_discount = 0.5; //User cannot choose, Clearance period modifier is always an discount of 50% on original price.
 				prom_nom = "Clearance " + prom_date_ini + " to " + prom_date_fin; //Clearance promo name is automatically set.
 				insertar_prom(prom_nom, null, null, prom_date_ini, prom_duration_days, 0, prom_date_fin, prom_discount);
-				JOptionPane.showMessageDialog(null, "Promo saved");
 				break;
 			case 0:// Exit.
 				JOptionPane.showMessageDialog(null, "Bye!");
